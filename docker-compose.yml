@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: kicau-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=kicau_user
+      - POSTGRES_PASSWORD=kicau_password
+      - POSTGRES_DB=kicau_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - '5432:5432'
+    networks:
+      - kicau-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kicau_user -d kicau_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nestjs-backend:
+    build:
+      context: ./web-service
+      dockerfile: Dockerfile
+    container_name: kicau-nestjs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://kicau_user:kicau_password@postgres:5432/kicau_db?schema=public
+      - PYTHON_BACKEND_URL=http://python-backend:8000
+      - NODE_ENV=development
+    ports:
+      - '3000:3000'
+    networks:
+      - kicau-network
+    restart: unless-stopped
+    volumes:
+      - ./web-service:/app
+
+  python-backend:
+    build:
+      context: ./inference-service
+      dockerfile: Dockerfile
+    container_name: kicau-python
+    environment:
+      - DATABASE_URL=postgresql://kicau_user:kicau_password@postgres:5432/kicau_db
+      - ENVIRONMENT=development
+    ports:
+      - '8000:8000'
+    networks:
+      - kicau-network
+    restart: unless-stopped
+    volumes:
+      - ./inference-service:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: kicau-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@kicau.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    networks:
+      - kicau-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    profiles:
+      - admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+networks:
+  kicau-network:
+    driver: bridge
