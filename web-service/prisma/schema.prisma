@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Bird {
+  id                  Int       @id @default(autoincrement())
+  species_code        String    @unique @db.VarChar(20)
+  ebird_url           String?   @db.VarChar(500)
+  common_name         String?   @db.VarChar(255)
+  scientific_name     String?   @db.VarChar(255)
+  family              String?   @db.VarChar(255)
+  order_name          String?   @db.VarChar(255)
+  conservation_status String?   @db.VarChar(100)
+  habitat             String?
+  description         String?
+  behavior            String?
+  diet                String?
+  nesting             String?
+  migration_pattern   String?
+  vocalization        String?
+  size_length_cm      Decimal?  @db.Decimal(6, 2)
+  size_wingspan_cm    Decimal?  @db.Decimal(6, 2)
+  size_weight_g       Decimal?  @db.Decimal(8, 2)
+  finding_tips        String?
+  cool_facts          Json?     @db.JsonB
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamp(0)
+
+  // Relasi ke tabel FotoVoice
+  foto_voice FotoVoice[]
+
+  @@index([common_name])
+  @@index([scientific_name])
+  @@index([family])
+  @@index([order_name])
+  @@index([species_code])
+}
+
+model FotoVoice {
+  id         Int       @id @default(autoincrement())
+  foto_url   String    @db.VarChar(500)
+  bird_id    Int
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+
+  // Definisi relasi: satu FotoVoice dimiliki oleh satu Bird
+  bird Bird @relation(fields: [bird_id], references: [id])
+}
