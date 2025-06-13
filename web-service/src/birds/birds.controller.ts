@@ -24,6 +24,13 @@ import axios, { AxiosError } from 'axios';
 // Define interface for the Python backend response
 interface PythonResponse {
     ebird_code: string;
+    confidence: number;
+    processing_time: number;
+}
+
+interface UploadAudioResponse {
+    inference_output: PythonResponse;
+    bird: Bird;
 }
 
 @ApiTags('birds')
@@ -122,7 +129,7 @@ export class BirdsController {
     @ApiResponse({ status: 500, description: 'Error processing audio file' })
     async uploadAudio(
         @UploadedFile() file?: Express.Multer.File,
-    ): Promise<Bird> {
+    ): Promise<UploadAudioResponse> {
         if (!file) {
             throw new BadRequestException('Audio file is required');
         }
@@ -168,7 +175,11 @@ export class BirdsController {
                     `Bird with ebird_code ${pythonResponse.ebird_code} not found`,
                 );
             }
-            return bird;
+
+            return {
+                bird,
+                inference_output: pythonResponse,
+            };
         } catch (error: unknown) {
             if (error instanceof AxiosError) {
                 console.error('Axios error:', error.message);
